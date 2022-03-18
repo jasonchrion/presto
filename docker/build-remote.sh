@@ -27,16 +27,16 @@ chmod +x ${WORK_DIR}/presto-cli-${PRESTO_VERSION}-executable.jar
 
 CONTAINER="jasonchrion/presto:${PRESTO_VERSION}"
 
-docker build ${WORK_DIR} --pull --platform linux/amd64 -f amd64.dockerfile -t ${CONTAINER} --build-arg "PRESTO_VERSION=${PRESTO_VERSION}"
-#docker build ${WORK_DIR} --pull --platform linux/arm64 -f arm64.dockerfile -t ${CONTAINER}-arm64 --build-arg "PRESTO_VERSION=${PRESTO_VERSION}"
+docker build ${WORK_DIR} --pull --platform linux/amd64 -f Dockerfile -t ${CONTAINER}-amd64 --build-arg "PRESTO_VERSION=${PRESTO_VERSION}"
+docker build ${WORK_DIR} --pull --platform linux/arm64 -f Dockerfile -t ${CONTAINER}-arm64 --build-arg "PRESTO_VERSION=${PRESTO_VERSION}"
 
 rm -r ${WORK_DIR}
 
 # Source common testing functions
 . container-test.sh
 
-test_container ${CONTAINER} linux/amd64
-#test_container ${CONTAINER}-arm64 linux/arm64
+test_container ${CONTAINER}-amd64 linux/amd64
+test_container ${CONTAINER}-arm64 linux/arm64
 
-docker image inspect -f '🚀 Built {{.RepoTags}} {{.Id}}' ${CONTAINER}
-#docker image inspect -f '🚀 Built {{.RepoTags}} {{.Id}}' ${CONTAINER}-arm64
+docker image inspect -f '🚀 Built {{.RepoTags}} {{.Id}}' ${CONTAINER}-amd64
+docker image inspect -f '🚀 Built {{.RepoTags}} {{.Id}}' ${CONTAINER}-arm64
