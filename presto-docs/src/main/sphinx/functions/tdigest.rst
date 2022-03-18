@@ -67,16 +67,18 @@ Functions
     Returns the ``tdigest`` which is composed of  all input values of ``x`` using
     the per-item weight ``w``.
 
-.. function:: tdigest_agg(x, w, accuracy) -> tdigest<double>
+.. function:: tdigest_agg(x, w, compression) -> tdigest<double>
 
     Returns the ``tdigest`` which is composed of  all input values of ``x`` using
-    the per-item weight ``w`` and maximum error of ``accuracy``. ``accuracy``
-    must be a value greater than zero and less than one, and it must be constant
-    for all input rows.
+    the per-item weight ``w`` and compression factor ``compression``. ``compression``
+    must be a value greater than zero, and it must be constant for all input rows.
+
+    Compression factor of 500 is a good starting point that typically yields good
+    accuracy and performance.
 
 .. function:: destructure_tdigest(tdigest<double>) -> row<centroid_means array<double>, centroid_weights array<integer>, compression double, min double, max double, sum double, count bigint>
 
     Returns a row that represents a ``tdigest`` data structure in the form of
     its component parts. These include arrays of the centroid means and weights,
-    the compression factor, and the the maximum, minimum, sum and count of the
+    the compression factor, and the maximum, minimum, sum and count of the
     values in the digest.

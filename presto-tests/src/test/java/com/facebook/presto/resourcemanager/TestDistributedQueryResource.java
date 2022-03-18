@@ -173,7 +173,8 @@ public class TestDistributedQueryResource
         }
     }
 
-    @Test
+    // Flaky test.
+    @Test(timeOut = 60_000, enabled = false)
     public void testGetAllQueryInfoForLimits()
             throws InterruptedException
     {
@@ -195,7 +196,7 @@ public class TestDistributedQueryResource
     }
 
     @Test
-    public void testGetAllQueryInfoRetunsAllQueriesWithNoLimitSpecified()
+    public void testGetAllQueryInfoReturnsAllQueriesWithNoLimitSpecified()
             throws InterruptedException
     {
         runToFirstResult(client, coordinator1, "SELECT * from tpch.sf100.orders");

@@ -12,6 +12,7 @@ from different data sources.
     connector/bigquery
     connector/blackhole
     connector/cassandra
+    connector/deltalake
     connector/druid
     connector/elasticsearch
     connector/hive
@@ -21,6 +22,7 @@ from different data sources.
     connector/kafka
     connector/kafka-tutorial
     connector/kudu
+    connector/larksheets
     connector/localfile
     connector/memory
     connector/mongodb

@@ -125,6 +125,7 @@ import static com.facebook.presto.common.type.RealType.REAL;
 import static com.facebook.presto.common.type.SmallintType.SMALLINT;
 import static com.facebook.presto.common.type.TimestampType.TIMESTAMP;
 import static com.facebook.presto.common.type.TinyintType.TINYINT;
+import static com.facebook.presto.common.type.TypeUtils.isEnumType;
 import static com.facebook.presto.common.type.Varchars.isVarcharType;
 import static com.facebook.presto.hive.HiveColumnHandle.ColumnType.PARTITION_KEY;
 import static com.facebook.presto.hive.HiveColumnHandle.ColumnType.REGULAR;
@@ -384,14 +385,19 @@ public final class HiveUtil
                 .anyMatch(USE_RECORD_READER_FROM_INPUT_FORMAT_ANNOTATION::equals);
     }
 
-    static boolean shouldUseFileSplitsFromInputFormat(InputFormat<?, ?> inputFormat, Configuration conf, String tablePath)
+    static boolean shouldUseFileSplitsFromInputFormat(InputFormat<?, ?> inputFormat, DirectoryLister directoryLister)
     {
-        boolean hasUseSplitsAnnotation = Arrays.stream(inputFormat.getClass().getAnnotations())
-                .map(Annotation::annotationType)
-                .map(Class::getSimpleName)
-                .anyMatch(USE_FILE_SPLITS_FROM_INPUT_FORMAT_ANNOTATION::equals);
+        if (directoryLister instanceof HudiDirectoryLister) {
+            boolean hasUseSplitsAnnotation = Arrays.stream(inputFormat.getClass().getAnnotations())
+                    .map(Annotation::annotationType)
+                    .map(Class::getSimpleName)
+                    .anyMatch(USE_FILE_SPLITS_FROM_INPUT_FORMAT_ANNOTATION::equals);
 
-        return hasUseSplitsAnnotation && (!isHudiParquetInputFormat(inputFormat) || shouldUseFileSplitsForHudi(inputFormat, conf, tablePath));
+            return hasUseSplitsAnnotation &&
+                    (!isHudiParquetInputFormat(inputFormat) || shouldUseFileSplitsForHudi(inputFormat, ((HudiDirectoryLister) directoryLister).getMetaClient()));
+        }
+
+        return false;
     }
 
     static boolean isHudiParquetInputFormat(InputFormat<?, ?> inputFormat)
@@ -399,14 +405,13 @@ public final class HiveUtil
         return inputFormat instanceof HoodieParquetInputFormat;
     }
 
-    private static boolean shouldUseFileSplitsForHudi(InputFormat<?, ?> inputFormat, Configuration conf, String tablePath)
+    private static boolean shouldUseFileSplitsForHudi(InputFormat<?, ?> inputFormat, HoodieTableMetaClient metaClient)
     {
         if (inputFormat instanceof HoodieParquetRealtimeInputFormat) {
             return true;
         }
 
-        HoodieTableMetaClient hoodieTableMetaClient = HoodieTableMetaClient.builder().setConf(conf).setBasePath(tablePath).build();
-        return hoodieTableMetaClient.getTableConfig().getBootstrapBasePath().isPresent();
+        return metaClient.getTableConfig().getBootstrapBasePath().isPresent();
     }
 
     public static long parseHiveDate(String value)
@@ -567,7 +572,8 @@ public final class HiveUtil
                 DATE.equals(type) ||
                 TIMESTAMP.equals(type) ||
                 isVarcharType(type) ||
-                isCharType(type);
+                isCharType(type) ||
+                isEnumType(type);
     }
 
     public static NullableValue parsePartitionValue(HivePartitionKey key, Type type, DateTimeZone timeZone)
@@ -1108,7 +1114,7 @@ public final class HiveUtil
             Integer physicalOrdinal = physicalNameOrdinalMap.get(column.getName());
             if (physicalOrdinal == null) {
                 // if the column is missing from the file, assign it a column number larger than the number of columns in the
-                // file so the reader will fill it with nulls.  If the index is negative, i.e. this is a sythesized column like
+                // file so the reader will fill it with nulls.  If the index is negative, i.e. this is a synthesized column like
                 // a partitioning key, $bucket or $path, leave it as is.
                 if (column.getHiveColumnIndex() < 0) {
                     physicalOrdinal = column.getHiveColumnIndex();

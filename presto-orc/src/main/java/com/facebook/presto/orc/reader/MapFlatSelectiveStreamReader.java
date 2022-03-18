@@ -23,6 +23,7 @@ import com.facebook.presto.common.block.RunLengthEncodedBlock;
 import com.facebook.presto.common.block.VariableWidthBlockBuilder;
 import com.facebook.presto.common.predicate.TupleDomainFilter;
 import com.facebook.presto.common.type.BigintType;
+import com.facebook.presto.common.type.FixedWidthType;
 import com.facebook.presto.common.type.IntegerType;
 import com.facebook.presto.common.type.MapType;
 import com.facebook.presto.common.type.SmallintType;
@@ -331,7 +332,7 @@ public class MapFlatSelectiveStreamReader
         readOffset = offset + streamPosition;
 
         if (!nonNullsAllowed) {
-            checkState(nullPositionCount == (positionCount - nonNullPositionCount), "nullPositionCount should be equal to postitionCount - nonNullPositionCount");
+            checkState(nullPositionCount == (positionCount - nonNullPositionCount), "nullPositionCount should be equal to positionCount - nonNullPositionCount");
             outputPositionCount = nullPositionCount;
             allNulls = true;
             System.arraycopy(nullPositions, 0, outputPositions, 0, nullPositionCount);
@@ -477,7 +478,13 @@ public class MapFlatSelectiveStreamReader
         int count = 0;
 
         Type valueType = outputType.getValueType();
-        BlockBuilder valueBlockBuilder = valueType.createBlockBuilder(null, offset);
+        BlockBuilder valueBlockBuilder;
+        if (valueType instanceof FixedWidthType) {
+            valueBlockBuilder = ((FixedWidthType) valueType).createFixedSizeBlockBuilder(offset);
+        }
+        else {
+            valueBlockBuilder = valueType.createBlockBuilder(null, offset);
+        }
 
         int[] valueBlockPositions = new int[keyCount];
 
@@ -502,7 +509,11 @@ public class MapFlatSelectiveStreamReader
             }
         }
 
-        return outputType.createBlockFromKeyValue(outputPositionCount, Optional.ofNullable(includeNulls ? nulls : null), offsets, new DictionaryBlock(keyBlock, keyIds), valueBlockBuilder);
+        return outputType.createBlockFromKeyValue(outputPositionCount,
+                Optional.ofNullable(includeNulls ? nulls : null),
+                offsets,
+                new DictionaryBlock(keyBlock, keyIds),
+                valueBlockBuilder.build());
     }
 
     private static RunLengthEncodedBlock createNullBlock(Type type, int positionCount)

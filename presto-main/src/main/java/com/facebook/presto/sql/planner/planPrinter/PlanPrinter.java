@@ -919,7 +919,7 @@ public class PlanPrinter
 
             TupleDomain<ColumnHandle> predicate = node.getCurrentConstraint();
             if (predicate == null) {
-                // This happens when printing the plan framgnet on worker for debug purpose
+                // This happens when printing the plan fragment on worker for debug purpose
                 nodeOutput.appendDetailsLine(":: PREDICATE INFORMATION UNAVAILABLE");
             }
             else if (predicate.isNone()) {
@@ -1301,7 +1301,7 @@ public class PlanPrinter
         }
 
         try {
-            FunctionHandle cast = functionAndTypeManager.lookupCast(CAST, type.getTypeSignature(), VARCHAR.getTypeSignature());
+            FunctionHandle cast = functionAndTypeManager.lookupCast(CAST, type, VARCHAR);
             Slice coerced = (Slice) new InterpretedFunctionInvoker(functionAndTypeManager).invoke(cast, session.getSqlFunctionProperties(), value);
             return "\"" + coerced.toStringUtf8().replace("\"", "\\\"") + "\"";
         }

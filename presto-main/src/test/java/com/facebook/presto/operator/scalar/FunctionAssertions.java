@@ -88,6 +88,7 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
+import org.intellij.lang.annotations.Language;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.openjdk.jol.info.ClassLayout;
@@ -144,10 +145,11 @@ import static com.facebook.presto.testing.TestingTaskContext.createTaskContext;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.airlift.units.DataSize.Unit.BYTE;
 import static java.lang.String.format;
-import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -404,6 +406,13 @@ public final class FunctionAssertions
         }
     }
 
+    public void assertFunctionThrowsIncorrectly(@Language("SQL") String projection, Class<? extends Throwable> throwableClass, @Language("RegExp") String message)
+    {
+        assertThatThrownBy(() -> evaluateInvalid(projection))
+                .isInstanceOf(throwableClass)
+                .hasMessageMatching(message);
+    }
+
     public void assertNumericOverflow(String projection, String message)
     {
         try {
@@ -639,7 +648,7 @@ public final class FunctionAssertions
                 SQL_PARSER,
                 SYMBOL_TYPES,
                 projectionExpression,
-                ImmutableList.of(),
+                ImmutableMap.of(),
                 WarningCollector.NOOP);
         return toRowExpression(projectionExpression, expressionTypes, INPUT_MAPPING);
     }
@@ -760,7 +769,7 @@ public final class FunctionAssertions
                 SQL_PARSER,
                 symbolTypes,
                 ImmutableList.of(parsedExpression),
-                ImmutableList.of(),
+                ImmutableMap.of(),
                 WarningCollector.NOOP,
                 false);
 
@@ -876,7 +885,7 @@ public final class FunctionAssertions
 
     private Object interpret(Expression expression, Type expectedType, Session session)
     {
-        Map<NodeRef<Expression>, Type> expressionTypes = getExpressionTypes(session, metadata, SQL_PARSER, SYMBOL_TYPES, expression, emptyList(), WarningCollector.NOOP);
+        Map<NodeRef<Expression>, Type> expressionTypes = getExpressionTypes(session, metadata, SQL_PARSER, SYMBOL_TYPES, expression, emptyMap(), WarningCollector.NOOP);
         ExpressionInterpreter evaluator = ExpressionInterpreter.expressionInterpreter(expression, metadata, session, expressionTypes);
 
         Object result = evaluator.evaluate(variable -> {

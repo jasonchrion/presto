@@ -330,9 +330,9 @@ class RelationPlanner
             for (int i = 0; i < leftComparisonExpressions.size(); i++) {
                 if (joinConditionComparisonOperators.get(i) == ComparisonExpression.Operator.EQUAL) {
                     VariableReferenceExpression leftVariable = leftPlanBuilder.translateToVariable(leftComparisonExpressions.get(i));
-                    VariableReferenceExpression righVariable = rightPlanBuilder.translateToVariable(rightComparisonExpressions.get(i));
+                    VariableReferenceExpression rightVariable = rightPlanBuilder.translateToVariable(rightComparisonExpressions.get(i));
 
-                    equiClauses.add(new JoinNode.EquiJoinClause(leftVariable, righVariable));
+                    equiClauses.add(new JoinNode.EquiJoinClause(leftVariable, rightVariable));
                 }
                 else {
                     Expression leftExpression = leftPlanBuilder.rewrite(leftComparisonExpressions.get(i));
@@ -717,7 +717,7 @@ class RelationPlanner
             }
         }, row);
         expression = Coercer.addCoercions(expression, analysis);
-        expression = ExpressionTreeRewriter.rewriteWith(new ParameterRewriter(analysis.getParameters(), analysis), expression);
+        expression = ExpressionTreeRewriter.rewriteWith(new ParameterRewriter(analysis), expression);
         return castToRowExpression(expression);
     }
 
@@ -740,7 +740,7 @@ class RelationPlanner
         for (Expression expression : node.getExpressions()) {
             Type type = analysis.getType(expression);
             Expression rewritten = Coercer.addCoercions(expression, analysis);
-            rewritten = ExpressionTreeRewriter.rewriteWith(new ParameterRewriter(analysis.getParameters(), analysis), rewritten);
+            rewritten = ExpressionTreeRewriter.rewriteWith(new ParameterRewriter(analysis), rewritten);
             values.add(castToRowExpression(rewritten));
             VariableReferenceExpression input = variableAllocator.newVariable(rewritten, type);
             argumentVariables.add(new VariableReferenceExpression(getSourceLocation(rewritten), input.getName(), type));

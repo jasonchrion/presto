@@ -50,7 +50,6 @@ import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.joda.time.DateTimeZone;
 import org.testng.annotations.AfterClass;
@@ -526,7 +525,6 @@ public class TestHiveSplitManager
                 hiveClientConfig.getMaxOutstandingSplitsSize(),
                 hiveClientConfig.getMinPartitionBatchSize(),
                 hiveClientConfig.getMaxPartitionBatchSize(),
-                hiveClientConfig.getMaxInitialSplits(),
                 hiveClientConfig.getSplitLoaderConcurrency(),
                 false,
                 new ConfigBasedCacheQuotaRequirementProvider(new CacheConfig()),
@@ -631,7 +629,7 @@ public class TestHiveSplitManager
             implements DirectoryLister
     {
         @Override
-        public Iterator<HiveFileInfo> list(ExtendedFileSystem fileSystem, Table table, Path path, NamenodeStats namenodeStats, PathFilter pathFilter, HiveDirectoryContext hiveDirectoryContext)
+        public Iterator<HiveFileInfo> list(ExtendedFileSystem fileSystem, Table table, Path path, NamenodeStats namenodeStats, HiveDirectoryContext hiveDirectoryContext)
         {
             try {
                 return ImmutableList.of(

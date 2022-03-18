@@ -164,6 +164,7 @@ import com.facebook.presto.spi.relation.VariableReferenceExpression;
 import com.facebook.presto.spiller.PartitioningSpillerFactory;
 import com.facebook.presto.spiller.SingleStreamSpillerFactory;
 import com.facebook.presto.spiller.SpillerFactory;
+import com.facebook.presto.spiller.StandaloneSpillerFactory;
 import com.facebook.presto.split.MappedRecordSet;
 import com.facebook.presto.split.PageSinkManager;
 import com.facebook.presto.split.PageSourceProvider;
@@ -367,6 +368,7 @@ public class LocalExecutionPlanner
     private final FragmentResultCacheManager fragmentResultCacheManager;
     private final ObjectMapper objectMapper;
     private final boolean tableFinishOperatorMemoryTrackingEnabled;
+    private final StandaloneSpillerFactory standaloneSpillerFactory;
 
     private static final TypeSignature SPHERICAL_GEOGRAPHY_TYPE_SIGNATURE = parseTypeSignature("SphericalGeography");
 
@@ -397,7 +399,8 @@ public class LocalExecutionPlanner
             JsonCodec<TableCommitContext> tableCommitContextCodec,
             DeterminismEvaluator determinismEvaluator,
             FragmentResultCacheManager fragmentResultCacheManager,
-            ObjectMapper objectMapper)
+            ObjectMapper objectMapper,
+            StandaloneSpillerFactory standaloneSpillerFactory)
     {
         this.explainAnalyzeContext = requireNonNull(explainAnalyzeContext, "explainAnalyzeContext is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
@@ -431,6 +434,7 @@ public class LocalExecutionPlanner
         this.fragmentResultCacheManager = requireNonNull(fragmentResultCacheManager, "fragmentResultCacheManager is null");
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
         this.tableFinishOperatorMemoryTrackingEnabled = requireNonNull(memoryManagerConfig, "memoryManagerConfig is null").isTableFinishOperatorMemoryTrackingEnabled();
+        this.standaloneSpillerFactory = requireNonNull(standaloneSpillerFactory, "standaloneSpillerFactory is null");
     }
 
     public LocalExecutionPlan plan(
@@ -1683,7 +1687,7 @@ public class LocalExecutionPlanner
             // The probe key channels will be handed to the index according to probeVariable order
             Map<VariableReferenceExpression, Integer> probeKeyLayout = new HashMap<>();
             for (int i = 0; i < probeVariables.size(); i++) {
-                // Duplicate variables can appear and we only need to take take one of the Inputs
+                // Duplicate variables can appear and we only need to take one of the Inputs
                 probeKeyLayout.put(probeVariables.get(i), i);
             }
 
@@ -3004,7 +3008,8 @@ public class LocalExecutionPlanner
                     joinCompiler,
                     lambdaProviders,
                     spillEnabled,
-                    session);
+                    session,
+                    standaloneSpillerFactory);
         }
 
         private PhysicalOperation planGlobalAggregation(AggregationNode node, PhysicalOperation source, LocalExecutionPlanContext context)

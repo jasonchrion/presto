@@ -102,7 +102,10 @@ public class TestPinotQueryBase
 
     protected static final Metadata metadata = MetadataManager.createTestMetadataManager();
 
-    protected final PinotConfig pinotConfig = new PinotConfig();
+    protected final PinotConfig pinotConfig = new PinotConfig()
+            .setMinConnectionsPerServer(1)
+            .setMaxConnectionsPerServer(2)
+            .setThreadPoolSize(2);
 
     protected static final Map<VariableReferenceExpression, PinotQueryGeneratorContext.Selection> testInput =
             ImmutableMap.<VariableReferenceExpression, PinotQueryGeneratorContext.Selection>builder()
@@ -230,7 +233,7 @@ public class TestPinotQueryBase
                 new SqlParser(),
                 typeProvider,
                 expression,
-                ImmutableList.of(),
+                ImmutableMap.of(),
                 WarningCollector.NOOP);
         return SqlToRowExpressionTranslator.translate(expression, expressionTypes, ImmutableMap.of(), functionAndTypeManager, session);
     }
