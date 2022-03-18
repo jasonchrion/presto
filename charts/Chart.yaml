@@ -1,6 +1,6 @@
 apiVersion: v2
 name: presto
-description: Fast distributed SQL query engine for big data analytics
+description: Fast distributed SQL query engine for big data analytics that helps you explore your data universe
 
 # A chart can be either an 'application' or a 'library' chart.
 #
@@ -20,7 +20,7 @@ version: 0.3.0
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
-appVersion: "0.267"
+appVersion: "0.271"
 
 icon: https://prestodb.io/static/presto.png
 
