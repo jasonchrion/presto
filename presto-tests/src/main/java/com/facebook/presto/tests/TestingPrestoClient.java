@@ -64,6 +64,7 @@ import static com.facebook.presto.common.type.Chars.isCharType;
 import static com.facebook.presto.common.type.DateType.DATE;
 import static com.facebook.presto.common.type.DoubleType.DOUBLE;
 import static com.facebook.presto.common.type.IntegerType.INTEGER;
+import static com.facebook.presto.common.type.JsonType.JSON;
 import static com.facebook.presto.common.type.RealType.REAL;
 import static com.facebook.presto.common.type.SmallintType.SMALLINT;
 import static com.facebook.presto.common.type.TimeType.TIME;
@@ -223,7 +224,7 @@ public class TestingPrestoClient
             }
         }
         else if (TIMESTAMP.equals(type)) {
-            return SqlTimestamp.JSON_FORMATTER.parse((String) value, LocalDateTime::from);
+            return SqlTimestamp.JSON_MILLIS_FORMATTER.parse((String) value, LocalDateTime::from);
         }
         else if (TIMESTAMP_WITH_TIME_ZONE.equals(type)) {
             return timestampWithTimeZoneFormat.parse((String) value, ZonedDateTime::from);
@@ -275,6 +276,9 @@ public class TestingPrestoClient
             return convertToRowValue(((TypeWithName) type).getType(), value);
         }
         else if (type.getTypeSignature().getBase().equals("ObjectId")) {
+            return value;
+        }
+        else if (JSON.equals(type)) {
             return value;
         }
         else {

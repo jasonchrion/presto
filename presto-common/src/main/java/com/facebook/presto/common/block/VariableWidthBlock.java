@@ -21,9 +21,11 @@ import org.openjdk.jol.info.ClassLayout;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.function.BiConsumer;
+import java.util.function.ObjLongConsumer;
 
 import static com.facebook.presto.common.block.BlockUtil.appendNullToIsNullArray;
 import static com.facebook.presto.common.block.BlockUtil.appendNullToOffsetsArray;
@@ -35,6 +37,7 @@ import static com.facebook.presto.common.block.BlockUtil.compactOffsets;
 import static com.facebook.presto.common.block.BlockUtil.compactSlice;
 import static com.facebook.presto.common.block.BlockUtil.internalPositionInRange;
 import static io.airlift.slice.SizeOf.sizeOf;
+import static io.airlift.slice.Slices.EMPTY_SLICE;
 import static java.lang.String.format;
 
 public class VariableWidthBlock
@@ -162,14 +165,23 @@ public class VariableWidthBlock
     }
 
     @Override
-    public void retainedBytesForEachPart(BiConsumer<Object, Long> consumer)
+    public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
     {
-        consumer.accept(slice, slice.getRetainedSize());
+        // For VariableWidthBlocks created from deserialized pages, it refers to byte array of whole page.
+        // When a page size is calculated, this byte array gets counted x number of times resulting in incorrect page size
+        // This problem is solved by accounting slice memory & underlying byte array separately while ensuring same object is counted once
+        if (slice.getBase() != null && slice.hasByteArray()) {
+            consumer.accept(slice, EMPTY_SLICE.getRetainedSize());
+            consumer.accept(slice.getBase(), sizeOf((byte[]) slice.getBase()));
+        }
+        else {
+            consumer.accept(slice, slice.getRetainedSize());
+        }
         consumer.accept(offsets, sizeOf(offsets));
         if (valueIsNull != null) {
             consumer.accept(valueIsNull, sizeOf(valueIsNull));
         }
-        consumer.accept(this, (long) INSTANCE_SIZE);
+        consumer.accept(this, INSTANCE_SIZE);
     }
 
     @Override
@@ -307,5 +319,36 @@ public class VariableWidthBlock
         int[] newOffsets = appendNullToOffsetsArray(offsets, arrayOffset, positionCount);
 
         return new VariableWidthBlock(arrayOffset, positionCount + 1, slice, newOffsets, newValueIsNull);
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        VariableWidthBlock other = (VariableWidthBlock) obj;
+        return this.arrayOffset == other.arrayOffset &&
+                this.positionCount == other.positionCount &&
+                Objects.equals(this.slice, other.slice) &&
+                Arrays.equals(this.offsets, other.offsets) &&
+                Arrays.equals(this.valueIsNull, other.valueIsNull) &&
+                this.retainedSizeInBytes == other.retainedSizeInBytes &&
+                this.sizeInBytes == other.sizeInBytes;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(arrayOffset,
+                positionCount,
+                slice,
+                Arrays.hashCode(offsets),
+                Arrays.hashCode(valueIsNull),
+                retainedSizeInBytes,
+                sizeInBytes);
     }
 }

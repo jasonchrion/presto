@@ -41,6 +41,7 @@ import com.facebook.presto.sql.planner.plan.IndexJoinNode;
 import com.facebook.presto.sql.planner.plan.InternalPlanVisitor;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.LateralJoinNode;
+import com.facebook.presto.sql.planner.plan.MergeJoinNode;
 import com.facebook.presto.sql.planner.plan.RowNumberNode;
 import com.facebook.presto.sql.planner.plan.SemiJoinNode;
 import com.facebook.presto.sql.planner.plan.SpatialJoinNode;
@@ -165,7 +166,8 @@ public class HashGenerationOptimizer
         {
             Optional<HashComputation> groupByHash = Optional.empty();
             List<VariableReferenceExpression> groupingKeys = node.getGroupingKeys();
-            if (!node.isStreamable() && !canSkipHashGeneration(node.getGroupingKeys())) {
+            if (!node.isStreamable() && !node.isSegmentedAggregationEligible() && !canSkipHashGeneration(node.getGroupingKeys())) {
+                // todo: for segmented aggregation, add optimizations for the fields that need to compute hash
                 groupByHash = computeHash(groupingKeys, functionAndTypeManager);
             }
 
@@ -461,6 +463,18 @@ public class HashGenerationOptimizer
                             Optional.of(probeHashVariable),
                             Optional.of(indexHashVariable)),
                     allHashVariables);
+        }
+
+        @Override
+        public PlanWithProperties visitMergeJoin(MergeJoinNode node, HashComputationSet parentPreference)
+        {
+            PlanWithProperties left = planAndEnforce(node.getLeft(), new HashComputationSet(), true, new HashComputationSet());
+            PlanWithProperties right = planAndEnforce(node.getRight(), new HashComputationSet(), true, new HashComputationSet());
+            verify(left.getHashVariables().isEmpty(), "left side of the merge join should not include hash variables");
+            verify(right.getHashVariables().isEmpty(), "right side of the merge join should not include hash variables");
+            return new PlanWithProperties(
+                    replaceChildren(node, ImmutableList.of(left.getNode(), right.getNode())),
+                    ImmutableMap.of());
         }
 
         @Override

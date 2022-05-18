@@ -105,3 +105,180 @@ The path(s) for Hadoop configuration resources. Example:
 This property is required if the ``iceberg.catalog.type`` is ``hadoop``.
 Otherwise, it will be ignored.
 
+Schema Evolution
+------------------------
+
+Iceberg and Presto Iceberg connector supports in-place table evolution, aka
+schema evolution, such as adding, dropping, and renaming columns. With schema
+evolution, users can evolve a table schema with SQL after enabling the Presto
+Iceberg connector.
+
+Example Queries
+^^^^^^^^^^^^^^^
+
+Let's create an Iceberg table named `ctas_nation`, created from the TPCH `nation`
+table. The table has four columns: `nationkey`, `name`, `regionkey`, and `comment`.
+
+.. code-block:: sql
+
+    USE iceberg.tpch;
+    CREATE TABLE IF NOT EXISTS ctas_nation AS (SELECT * FROM nation);
+    DESCRIBE ctas_nation;
+
+.. code-block:: text
+
+      Column   |  Type   | Extra | Comment
+    -----------+---------+-------+---------
+     nationkey | bigint  |       |
+     name      | varchar |       |
+     regionkey | bigint  |       |
+     comment   | varchar |       |
+    (4 rows)
+
+We can simply add a new column to the Iceberg table by using the `ALTER TABLE`
+statement. The following query adds a new column named `zipcode` to the table.
+
+.. code-block:: sql
+
+    ALTER TABLE ctas_nation ADD COLUMN zipcode VARCHAR;
+    DESCRIBE ctas_nation;
+
+.. code-block:: text
+
+      Column   |  Type   | Extra | Comment
+    -----------+---------+-------+---------
+     nationkey | bigint  |       |
+     name      | varchar |       |
+     regionkey | bigint  |       |
+     comment   | varchar |       |
+     zipcode   | varchar |       |
+    (5 rows)
+
+We can also rename the new column to `location`:
+
+.. code-block:: sql
+
+    ALTER TABLE ctas_nation RENAME COLUMN zipcode TO location;
+    DESCRIBE ctas_nation;
+
+.. code-block:: text
+
+      Column   |  Type   | Extra | Comment
+    -----------+---------+-------+---------
+     nationkey | bigint  |       |
+     name      | varchar |       |
+     regionkey | bigint  |       |
+     comment   | varchar |       |
+     location  | varchar |       |
+    (5 rows)
+
+Finally, we can delete the new column. The table columns will be restored to the
+original state.
+
+.. code-block:: sql
+
+    ALTER TABLE ctas_nation DROP COLUMN location;
+    DESCRIBE ctas_nation;
+
+.. code-block:: text
+
+      Column   |  Type   | Extra | Comment
+    -----------+---------+-------+---------
+     nationkey | bigint  |       |
+     name      | varchar |       |
+     regionkey | bigint  |       |
+     comment   | varchar |       |
+    (4 rows)
+
+
+Time Travel
+------------------------
+
+Iceberg and Presto Iceberg connector supports time travel via table snapshots
+identified by unique snapshot IDs. The snapshot IDs are stored in the `$snapshots`
+metadata table. We can rollback the state of a table to a previous snapshot ID.
+
+Example Queries
+^^^^^^^^^^^^^^^
+
+Similar to the example queries in the `Schema Evolution`, let's create an Iceberg
+table named `ctas_nation`, created from the TPCH `nation` table.
+
+.. code-block:: sql
+
+    USE iceberg.tpch;
+    CREATE TABLE IF NOT EXISTS ctas_nation AS (SELECT * FROM nation);
+    DESCRIBE ctas_nation;
+
+.. code-block:: text
+
+      Column   |  Type   | Extra | Comment
+    -----------+---------+-------+---------
+     nationkey | bigint  |       |
+     name      | varchar |       |
+     regionkey | bigint  |       |
+     comment   | varchar |       |
+    (4 rows)
+
+We can find snapshot IDs of the Iceberg table from the `$snapshots` metadata table.
+
+.. code-block:: sql
+
+    SELECT snapshot_id FROM iceberg.tpch."ctas_nation$snapshots" ORDER BY committed_at;
+
+.. code-block:: text
+
+         snapshot_id
+    ---------------------
+     5837462824399906536
+    (1 row)
+
+For now, as we've just created the table, there's only one snapshot ID. Let's
+insert one row into the table and see the change of the snapshot IDs.
+
+.. code-block:: sql
+
+    INSERT INTO ctas_nation VALUES(25, 'new country', 1, 'comment');
+    SELECT snapshot_id FROM iceberg.tpch."ctas_nation$snapshots" ORDER BY committed_at;
+
+.. code-block:: text
+
+         snapshot_id
+    ---------------------
+     5837462824399906536
+     5140039250977437531
+    (2 rows)
+
+Now there's a new snapshot (`5140039250977437531`) created as a new row is
+inserted into the table. The new row can be verified by running
+
+.. code-block:: sql
+
+    SELECT * FROM ctas_nation WHERE name = 'new country';
+
+.. code-block:: text
+
+     nationkey |    name     | regionkey | comment
+    -----------+-------------+-----------+---------
+            25 | new country |         1 | comment
+    (1 row)
+
+With the time travel feature, we can rollback to the previous state without the
+new row by calling `iceberg.system.rollback_to_snapshot`:
+
+.. code-block:: sql
+
+    CALL iceberg.system.rollback_to_snapshot('tpch', 'ctas_nation', 5837462824399906536);
+
+Now if we check the table again, we'll find the inserted new row no longer
+exists as we've rollbacked to the previous state.
+
+.. code-block:: sql
+
+    SELECT * FROM ctas_nation WHERE name = 'new country';
+
+.. code-block:: text
+
+     nationkey | name | regionkey | comment
+    -----------+------+-----------+---------
+    (0 rows)

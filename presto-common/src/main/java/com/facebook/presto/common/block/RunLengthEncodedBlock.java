@@ -21,8 +21,9 @@ import org.openjdk.jol.info.ClassLayout;
 
 import javax.annotation.Nullable;
 
+import java.util.Objects;
 import java.util.OptionalInt;
-import java.util.function.BiConsumer;
+import java.util.function.ObjLongConsumer;
 
 import static com.facebook.presto.common.block.BlockUtil.checkArrayRange;
 import static com.facebook.presto.common.block.BlockUtil.checkValidPosition;
@@ -111,10 +112,10 @@ public class RunLengthEncodedBlock
     }
 
     @Override
-    public void retainedBytesForEachPart(BiConsumer<Object, Long> consumer)
+    public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
     {
         consumer.accept(value, value.getRetainedSizeInBytes());
-        consumer.accept(this, (long) INSTANCE_SIZE);
+        consumer.accept(this, INSTANCE_SIZE);
     }
 
     @Override
@@ -426,5 +427,25 @@ public class RunLengthEncodedBlock
             ids[positionCount] = 1;
             return new DictionaryBlock(dictionary, ids);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        RunLengthEncodedBlock other = (RunLengthEncodedBlock) obj;
+        return Objects.equals(this.value, other.value) &&
+                this.positionCount == other.positionCount;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(value, positionCount);
     }
 }

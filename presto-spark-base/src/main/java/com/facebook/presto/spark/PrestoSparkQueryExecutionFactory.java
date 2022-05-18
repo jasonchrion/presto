@@ -173,6 +173,7 @@ import static com.facebook.presto.spark.SparkErrorCode.SPARK_EXECUTOR_OOM;
 import static com.facebook.presto.spark.SparkErrorCode.UNSUPPORTED_STORAGE_TYPE;
 import static com.facebook.presto.spark.classloader_interface.ScalaUtils.collectScalaIterator;
 import static com.facebook.presto.spark.classloader_interface.ScalaUtils.emptyScalaIterator;
+import static com.facebook.presto.spark.util.PrestoSparkFailureUtils.toPrestoSparkFailure;
 import static com.facebook.presto.spark.util.PrestoSparkUtils.classTag;
 import static com.facebook.presto.spark.util.PrestoSparkUtils.computeNextTimeout;
 import static com.facebook.presto.spark.util.PrestoSparkUtils.createPagesSerde;
@@ -510,7 +511,7 @@ public class PrestoSparkQueryExecutionFactory
                 log.error(eventFailure, "Error publishing query immediate failure event");
             }
 
-            throw failureInfo.get().toFailure();
+            throw toPrestoSparkFailure(session, failureInfo.get());
         }
     }
 
@@ -644,7 +645,9 @@ public class PrestoSparkQueryExecutionFactory
         long peakTaskTotalMemoryInBytes = 0;
         long peakNodeTotalMemoryInBytes = 0;
 
-        for (StageInfo stageInfo : getAllStages(rootStage)) {
+        List<StageInfo> allStages = getAllStages(rootStage);
+
+        for (StageInfo stageInfo : allStages) {
             StageExecutionInfo stageExecutionInfo = stageInfo.getLatestAttemptExecutionInfo();
             for (TaskInfo taskInfo : stageExecutionInfo.getTasks()) {
                 // there's no way to know how many tasks were running in parallel in Spark
@@ -663,6 +666,7 @@ public class PrestoSparkQueryExecutionFactory
         QueryStats queryStats = QueryStats.create(
                 queryStateTimer,
                 rootStage,
+                allStages,
                 peakRunningTasks,
                 succinctBytes(peakUserMemoryReservationInBytes),
                 succinctBytes(peakTotalMemoryReservationInBytes),
@@ -699,7 +703,7 @@ public class PrestoSparkQueryExecutionFactory
                 warningCollector.getWarnings(),
                 planAndMore.map(PlanAndMore::getInputs).orElse(ImmutableSet.of()),
                 planAndMore.flatMap(PlanAndMore::getOutput),
-                true,
+                queryState.isDone(),
                 sparkQueueName.map(ResourceGroupId::new),
                 planAndMore.flatMap(PlanAndMore::getQueryType),
                 Optional.empty(),
@@ -1005,7 +1009,7 @@ public class PrestoSparkQueryExecutionFactory
                     log.error(eventFailure, "Error publishing query completed event");
                 }
 
-                throw failureInfo.get().toFailure();
+                throw toPrestoSparkFailure(session, failureInfo.get());
             }
 
             processShuffleStats();

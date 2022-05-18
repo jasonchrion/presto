@@ -126,6 +126,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -616,7 +617,20 @@ public class OrcTester
         assertEquals(writeTypes.size(), writeValues.size());
         assertEquals(writeTypes.size(), readValues.size());
 
-        OrcWriterStats stats = new OrcWriterStats();
+        AtomicLong totalSize = new AtomicLong(0);
+        WriterStats stats = new WriterStats() {
+            @Override
+            public void recordStripeWritten(int stripeMinBytes, int stripeMaxBytes, int dictionaryMaxMemoryBytes, FlushReason flushReason, int dictionaryBytes, StripeInformation stripeInformation)
+            {
+            }
+
+            @Override
+            public void updateSizeInBytes(long deltaInBytes)
+            {
+                totalSize.getAndAdd(deltaInBytes);
+            }
+        };
+
         for (Format format : formats) {
             if (!readTypes.stream().allMatch(readType -> format.supportsType(readType))) {
                 return;
@@ -712,7 +726,7 @@ public class OrcTester
             }
         }
 
-        assertEquals(stats.getWriterSizeInBytes(), 0);
+        assertEquals(totalSize.get(), 0);
     }
 
     public static class OrcReaderSettings
@@ -1389,18 +1403,22 @@ public class OrcTester
 
             List<Entry<?, ?>> expectedEntries = new ArrayList<>(expectedMap.entrySet());
             for (Entry<?, ?> actualEntry : actualMap.entrySet()) {
+                boolean matchFound = false;
                 for (Iterator<Entry<?, ?>> iterator = expectedEntries.iterator(); iterator.hasNext(); ) {
                     Entry<?, ?> expectedEntry = iterator.next();
                     try {
                         assertColumnValueEquals(keyType, actualEntry.getKey(), expectedEntry.getKey());
                         assertColumnValueEquals(valueType, actualEntry.getValue(), expectedEntry.getValue());
                         iterator.remove();
+                        matchFound = true;
+                        break;
                     }
                     catch (AssertionError ignored) {
                     }
                 }
+                assertTrue(matchFound);
             }
-            assertTrue(expectedEntries.isEmpty(), "Unmatched entries " + expectedEntries);
+            assertTrue(expectedEntries.isEmpty());
         }
         else if (StandardTypes.ROW.equals(baseType)) {
             List<Type> fieldTypes = type.getTypeParameters();
@@ -1524,7 +1542,7 @@ public class OrcTester
     public static void writeOrcColumnPresto(File outputFile, Format format, CompressionKind compression, Type type, List<?> values)
             throws Exception
     {
-        writeOrcColumnsPresto(outputFile, format, compression, Optional.empty(), ImmutableList.of(type), ImmutableList.of(values), new OrcWriterStats());
+        writeOrcColumnsPresto(outputFile, format, compression, Optional.empty(), ImmutableList.of(type), ImmutableList.of(values), new NoOpOrcWriterStats());
     }
 
     public static void writeOrcColumnsPresto(File outputFile, Format format, CompressionKind compression, Optional<DwrfWriterEncryption> dwrfWriterEncryption, List<Type> types, List<List<?>> values, WriterStats stats)

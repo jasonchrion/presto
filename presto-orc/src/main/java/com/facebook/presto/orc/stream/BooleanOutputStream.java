@@ -18,6 +18,7 @@ import com.facebook.presto.orc.DwrfDataEncryptor;
 import com.facebook.presto.orc.OrcOutputBuffer;
 import com.facebook.presto.orc.checkpoint.BooleanStreamCheckpoint;
 import com.facebook.presto.orc.checkpoint.ByteStreamCheckpoint;
+import com.facebook.presto.orc.metadata.Stream.StreamKind;
 import com.google.common.collect.ImmutableList;
 import org.openjdk.jol.info.ClassLayout;
 
@@ -157,10 +158,16 @@ public class BooleanOutputStream
     }
 
     @Override
-    public StreamDataOutput getStreamDataOutput(int column)
+    public StreamDataOutput getStreamDataOutput(int column, int sequence)
     {
         checkState(closed);
-        return byteOutputStream.getStreamDataOutput(column);
+        return byteOutputStream.getStreamDataOutput(column, sequence);
+    }
+
+    public StreamDataOutput getStreamDataOutput(int column, int sequence, StreamKind streamKind)
+    {
+        checkState(closed);
+        return byteOutputStream.getStreamDataOutput(column, sequence, streamKind);
     }
 
     @Override

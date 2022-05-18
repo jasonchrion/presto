@@ -17,8 +17,10 @@ import org.openjdk.jol.info.ClassLayout;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.function.BiConsumer;
+import java.util.function.ObjLongConsumer;
 
 import static io.airlift.slice.SizeOf.sizeOf;
 import static java.lang.String.format;
@@ -31,6 +33,7 @@ public class ArrayBlock
 
     private final int arrayOffset;
     private final int positionCount;
+    @Nullable
     private final boolean[] valueIsNull;
     private final Block values;
     private final int[] offsets;
@@ -155,12 +158,14 @@ public class ArrayBlock
     }
 
     @Override
-    public void retainedBytesForEachPart(BiConsumer<Object, Long> consumer)
+    public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
     {
         consumer.accept(values, values.getRetainedSizeInBytes());
         consumer.accept(offsets, sizeOf(offsets));
-        consumer.accept(valueIsNull, sizeOf(valueIsNull));
-        consumer.accept(this, (long) INSTANCE_SIZE);
+        if (valueIsNull != null) {
+            consumer.accept(valueIsNull, sizeOf(valueIsNull));
+        }
+        consumer.accept(this, INSTANCE_SIZE);
     }
 
     @Override
@@ -236,5 +241,38 @@ public class ArrayBlock
         }
 
         return getSingleValueBlockInternal(position);
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        ArrayBlock other = (ArrayBlock) obj;
+        return this.arrayOffset == other.arrayOffset &&
+                this.positionCount == other.positionCount &&
+                Arrays.equals(this.valueIsNull, other.valueIsNull) &&
+                Objects.equals(this.values, other.values) &&
+                Arrays.equals(this.offsets, other.offsets) &&
+                this.sizeInBytes == other.sizeInBytes &&
+                this.logicalSizeInBytes == other.logicalSizeInBytes &&
+                this.retainedSizeInBytes == other.retainedSizeInBytes;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(arrayOffset,
+                positionCount,
+                Arrays.hashCode(valueIsNull),
+                values,
+                Arrays.hashCode(offsets),
+                sizeInBytes,
+                logicalSizeInBytes,
+                retainedSizeInBytes);
     }
 }

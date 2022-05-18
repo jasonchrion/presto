@@ -85,6 +85,7 @@ public class TestFeaturesConfig
                 .setDictionaryAggregation(false)
                 .setAggregationPartitioningMergingStrategy(LEGACY)
                 .setLegacyArrayAgg(false)
+                .setUseAlternativeFunctionSignatures(false)
                 .setGroupByUsesEqualTo(false)
                 .setLegacyMapSubscript(false)
                 .setReduceAggForComplexTypesEnabled(true)
@@ -145,6 +146,7 @@ public class TestFeaturesConfig
                 .setPartialAggregationStrategy(PartialAggregationStrategy.ALWAYS)
                 .setPartialAggregationByteReductionThreshold(0.5)
                 .setOptimizeTopNRowNumber(true)
+                .setOptimizeCaseExpressionPredicate(false)
                 .setHistogramGroupImplementation(HistogramGroupImplementation.NEW)
                 .setArrayAggGroupImplementation(ArrayAggGroupImplementation.NEW)
                 .setMultimapAggGroupImplementation(MultimapAggGroupImplementation.NEW)
@@ -191,7 +193,11 @@ public class TestFeaturesConfig
                 .setHashBasedDistinctLimitThreshold(10000)
                 .setStreamingForPartialAggregationEnabled(false)
                 .setMaxStageCountForEagerScheduling(25)
-                .setHyperloglogStandardErrorWarningThreshold(0.004));
+                .setHyperloglogStandardErrorWarningThreshold(0.004)
+                .setPreferMergeJoin(false)
+                .setSegmentedAggregationEnabled(false)
+                .setQueryAnalyzerTimeout(new Duration(3, MINUTES))
+                .setQuickDistinctLimitEnabled(false));
     }
 
     @Test
@@ -216,6 +222,7 @@ public class TestFeaturesConfig
                 .put("optimizer.default-filter-factor-enabled", "true")
                 .put("deprecated.legacy-array-agg", "true")
                 .put("deprecated.legacy-log-function", "true")
+                .put("use-alternative-function-signatures", "true")
                 .put("deprecated.group-by-uses-equal", "true")
                 .put("deprecated.legacy-map-subscript", "true")
                 .put("reduce-agg-for-complex-types-enabled", "false")
@@ -290,6 +297,7 @@ public class TestFeaturesConfig
                 .put("optimizer.partial-aggregation-strategy", "automatic")
                 .put("optimizer.partial-aggregation-byte-reduction-threshold", "0.8")
                 .put("optimizer.optimize-top-n-row-number", "false")
+                .put("optimizer.optimize-case-expression-predicate", "true")
                 .put("distributed-sort", "false")
                 .put("analyzer.max-grouping-sets", "2047")
                 .put("deprecated.legacy-unnest-array-rows", "true")
@@ -334,6 +342,10 @@ public class TestFeaturesConfig
                 .put("streaming-for-partial-aggregation-enabled", "true")
                 .put("execution-policy.max-stage-count-for-eager-scheduling", "123")
                 .put("hyperloglog-standard-error-warning-threshold", "0.02")
+                .put("optimizer.prefer-merge-join", "true")
+                .put("optimizer.segmented-aggregation-enabled", "true")
+                .put("planner.query-analyzer-timeout", "10s")
+                .put("optimizer.quick-distinct-limit-enabled", "true")
                 .build();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -380,6 +392,7 @@ public class TestFeaturesConfig
                 .setAggregationPartitioningMergingStrategy(TOP_DOWN)
                 .setPushAggregationThroughJoin(false)
                 .setLegacyArrayAgg(true)
+                .setUseAlternativeFunctionSignatures(true)
                 .setGroupByUsesEqualTo(true)
                 .setLegacyMapSubscript(true)
                 .setReduceAggForComplexTypesEnabled(false)
@@ -425,6 +438,7 @@ public class TestFeaturesConfig
                 .setPartialAggregationStrategy(PartialAggregationStrategy.AUTOMATIC)
                 .setPartialAggregationByteReductionThreshold(0.8)
                 .setOptimizeTopNRowNumber(false)
+                .setOptimizeCaseExpressionPredicate(true)
                 .setHistogramGroupImplementation(HistogramGroupImplementation.LEGACY)
                 .setArrayAggGroupImplementation(ArrayAggGroupImplementation.LEGACY)
                 .setMultimapAggGroupImplementation(MultimapAggGroupImplementation.LEGACY)
@@ -473,7 +487,11 @@ public class TestFeaturesConfig
                 .setHashBasedDistinctLimitThreshold(500)
                 .setStreamingForPartialAggregationEnabled(true)
                 .setMaxStageCountForEagerScheduling(123)
-                .setHyperloglogStandardErrorWarningThreshold(0.02);
+                .setHyperloglogStandardErrorWarningThreshold(0.02)
+                .setPreferMergeJoin(true)
+                .setSegmentedAggregationEnabled(true)
+                .setQueryAnalyzerTimeout(new Duration(10, SECONDS))
+                .setQuickDistinctLimitEnabled(true);
         assertFullMapping(properties, expected);
     }
 

@@ -272,6 +272,7 @@ import static com.facebook.presto.hive.metastore.MetastoreUtil.PRESTO_QUERY_ID_N
 import static com.facebook.presto.hive.metastore.MetastoreUtil.createDirectory;
 import static com.facebook.presto.hive.metastore.MetastoreUtil.getMetastoreHeaders;
 import static com.facebook.presto.hive.metastore.MetastoreUtil.toPartitionValues;
+import static com.facebook.presto.hive.metastore.NoopMetastoreCacheStats.NOOP_METASTORE_CACHE_STATS;
 import static com.facebook.presto.hive.metastore.PrestoTableType.MANAGED_TABLE;
 import static com.facebook.presto.hive.metastore.StorageFormat.fromHiveStorageFormat;
 import static com.facebook.presto.hive.rule.HiveFilterPushdown.pushdownFilter;
@@ -792,6 +793,7 @@ public abstract class AbstractTestHiveClient
                 false,
                 "layout",
                 Optional.empty(),
+                false,
                 false);
 
         int partitionColumnIndex = MAX_PARTITION_KEY_COLUMN_INDEX;
@@ -861,6 +863,7 @@ public abstract class AbstractTestHiveClient
                         false,
                         "layout",
                         Optional.empty(),
+                        false,
                         false),
                 Optional.empty(),
                 withColumnDomains(ImmutableMap.of(
@@ -906,6 +909,7 @@ public abstract class AbstractTestHiveClient
                 false,
                 "layout",
                 Optional.empty(),
+                false,
                 false));
         timeZone = DateTimeZone.forTimeZone(TimeZone.getTimeZone(ZoneId.of(timeZoneId)));
     }
@@ -922,8 +926,10 @@ public abstract class AbstractTestHiveClient
         }
 
         HiveCluster hiveCluster = new TestingHiveCluster(metastoreClientConfig, host, port);
+        HdfsConfiguration hdfsConfiguration = new HiveHdfsConfiguration(new HdfsConfigurationInitializer(hiveClientConfig, metastoreClientConfig), ImmutableSet.of());
+        hdfsEnvironment = new HdfsEnvironment(hdfsConfiguration, metastoreClientConfig, new NoHdfsAuthentication());
         ExtendedHiveMetastore metastore = new CachingHiveMetastore(
-                new BridgingHiveMetastore(new ThriftHiveMetastore(hiveCluster, metastoreClientConfig), new HivePartitionMutator()),
+                new BridgingHiveMetastore(new ThriftHiveMetastore(hiveCluster, metastoreClientConfig, hdfsEnvironment), new HivePartitionMutator()),
                 executor,
                 false,
                 Duration.valueOf("1m"),
@@ -931,7 +937,9 @@ public abstract class AbstractTestHiveClient
                 10000,
                 false,
                 MetastoreCacheScope.ALL,
-                0.0);
+                0.0,
+                metastoreClientConfig.getPartitionCacheColumnCountLimit(),
+                NOOP_METASTORE_CACHE_STATS);
 
         setup(databaseName, hiveClientConfig, cacheConfig, metastoreClientConfig, metastore);
     }
@@ -961,6 +969,7 @@ public abstract class AbstractTestHiveClient
                 getHiveClientConfig().getMaxPartitionBatchSize(),
                 getHiveClientConfig().getMaxPartitionsPerScan(),
                 false,
+                10_000,
                 FUNCTION_AND_TYPE_MANAGER,
                 locationService,
                 FUNCTION_RESOLUTION,
@@ -2092,6 +2101,7 @@ public abstract class AbstractTestHiveClient
                     false,
                     "layout",
                     Optional.empty(),
+                    false,
                     false);
 
             List<ConnectorSplit> splits = getAllSplits(session, transaction, modifiedReadBucketCountLayoutHandle);
@@ -5042,7 +5052,7 @@ public abstract class AbstractTestHiveClient
         return handle;
     }
 
-    private MaterializedResult readTable(
+    protected MaterializedResult readTable(
             Transaction transaction,
             ConnectorTableHandle hiveTableHandle,
             List<ColumnHandle> columnHandles,
@@ -5056,7 +5066,7 @@ public abstract class AbstractTestHiveClient
         return readTable(transaction, hiveTableHandle, layoutHandle, columnHandles, session, expectedSplitCount, expectedStorageFormat);
     }
 
-    private MaterializedResult readTable(
+    protected MaterializedResult readTable(
             Transaction transaction,
             ConnectorTableHandle hiveTableHandle,
             ConnectorTableLayoutHandle hiveTableLayoutHandle,
