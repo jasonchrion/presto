@@ -61,3 +61,34 @@ Create chart name and version as used by the chart label.
 {{- define "presto.catalog" -}}
 {{ template "presto.fullname" . }}-catalog
 {{- end -}}
+
+{{/*
+Common labels
+*/}}
+{{- define "presto.labels" -}}
+helm.sh/chart: {{ include "presto.chart" . }}
+{{ include "presto.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Selector labels
+*/}}
+{{- define "presto.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "presto.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+Create the name of the service account to use
+*/}}
+{{- define "presto.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (include "presto.fullname" .) .Values.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.serviceAccount.name }}
+{{- end }}
+{{- end }}

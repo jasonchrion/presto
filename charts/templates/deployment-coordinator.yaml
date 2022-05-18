@@ -21,6 +21,7 @@ spec:
         release: {{ .Release.Name }}
         component: coordinator
     spec:
+      serviceAccountName: {{ include "presto.serviceAccountName" . }}
       {{- with .Values.securityContext }}
       securityContext:
         runAsUser: {{ .runAsUser }}
@@ -33,8 +34,27 @@ spec:
         - name: catalog-volume
           configMap:
             name: {{ template "presto.catalog" . }}
+        {{- if .Values.accessControl }}{{- if eq .Values.accessControl.type "configmap" }}
+        - name: access-control-volume
+          configMap:
+            name: presto-access-control-volume-coordinator
+        {{- end }}{{- end }}
+        {{- if eq .Values.server.config.authenticationType "PASSWORD" }}
+        - name: password-volume
+          secret:
+            secretName: presto-password-authentication
+        {{- end }}
+      {{- if .Values.initContainers.coordinator }}
+      initContainers:
+      {{-  tpl (toYaml .Values.initContainers.coordinator) . | nindent 6 }}
+      {{- end }}
+        {{- range .Values.secretMounts }}
+        - name: {{ .name }}
+          secret:
+            secretName: {{ .secretName }}
+        {{- end }}
       imagePullSecrets:
-        - name: registry-credentials
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}-coordinator
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -46,6 +66,18 @@ spec:
               name: config-volume
             - mountPath: {{ .Values.server.config.path }}/catalog
               name: catalog-volume
+            {{- if .Values.accessControl }}{{- if eq .Values.accessControl.type "configmap" }}
+            - mountPath: {{ .Values.server.config.path }}/access-control
+              name: access-control-volume
+            {{- end }}{{- end }}
+            {{- range .Values.secretMounts }}
+            - name: {{ .name }}
+              mountPath: {{ .path }}
+            {{- end }}
+            {{- if eq .Values.server.config.authenticationType "PASSWORD" }}
+            - mountPath: {{ .Values.server.config.path }}/auth
+              name: password-volume
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
@@ -54,12 +86,22 @@ spec:
             httpGet:
               path: /v1/info
               port: http
+            initialDelaySeconds: {{ .Values.coordinator.livenessProbe.initialDelaySeconds | default 20 }}
+            periodSeconds: {{ .Values.coordinator.livenessProbe.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.coordinator.livenessProbe.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.coordinator.livenessProbe.failureThreshold | default 6 }}
+            successThreshold: {{ .Values.coordinator.livenessProbe.successThreshold | default 1 }}
           readinessProbe:
             httpGet:
               path: /v1/info
               port: http
+            initialDelaySeconds: {{ .Values.coordinator.readinessProbe.initialDelaySeconds | default 20 }}
+            periodSeconds: {{ .Values.coordinator.readinessProbe.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.coordinator.readinessProbe.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.coordinator.readinessProbe.failureThreshold | default 6 }}
+            successThreshold: {{ .Values.coordinator.readinessProbe.successThreshold | default 1 }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.coordinator.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -22,7 +22,7 @@ cp -R default ${WORK_DIR}/
 
 cp ${SOURCE_DIR}/presto-cli/target/presto-cli-${PRESTO_VERSION}-executable.jar ${WORK_DIR}
 
-CONTAINER="jasonchrion/presto:${PRESTO_VERSION}"
+CONTAINER="prestpdb/presto:${PRESTO_VERSION}"
 
 docker build ${WORK_DIR} --pull --platform linux/amd64 -f Dockerfile -t ${CONTAINER}-amd64 --build-arg "PRESTO_VERSION=${PRESTO_VERSION}"
 docker build ${WORK_DIR} --pull --platform linux/arm64 -f Dockerfile -t ${CONTAINER}-arm64 --build-arg "PRESTO_VERSION=${PRESTO_VERSION}"
